@@ -1,0 +1,83 @@
+# ── Prod profile: real DBs from env vars, minimal logging, hardened ────
+
+spring:
+  jpa:
+    show-sql: false                            # never log SQL in production
+    properties:
+      hibernate:
+        format_sql: false
+    open-in-view: false                        # avoid lazy loading issues
+
+  # H2 console off in prod
+  h2:
+    console:
+      enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+logging:
+  level:
+    root: WARN
+    com.ecommerce: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/app/service.log             # write logs to file in prod
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus   # only safe endpoints in prod
+  endpoint:
+    health:
+      show-details: when-authorized            # hide internals from anonymous callers
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}                      # MUST come from env var — never hardcode
+    expiration: 86400000                       # 24h
+
+# Resilience4j — tighter thresholds in production
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        sliding-window-size: 20               # larger sample for prod traffic
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s      # wait longer before retrying in prod
+        permitted-number-of-calls-in-half-open-state: 5
+        slow-call-rate-threshold: 80          # also trip on slow calls
+        slow-call-duration-threshold: 3s
+        register-health-indicator: true
+  timelimiter:
+    instances:
+      user-service:
+        timeout-duration: 3s                  # fail fast in prod
+  retry:
+    instances:
+      user-service:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - feign.FeignException.ServiceUnavailable
+          - java.net.ConnectException
+  bulkhead:
+    instances:
+      user-service:
+        max-concurrent-calls: 20
+        max-wait-duration: 0ms

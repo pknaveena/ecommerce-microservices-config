@@ -1,0 +1,72 @@
+# ── Dev profile: local DBs, verbose logging, relaxed security ──────────
+
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # In dev — use H2 in-memory DB so you don't need MySQL installed
+  # Individual service YMLs override this with their real MySQL config
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5      # faster heartbeat in dev
+    lease-expiration-duration-in-seconds: 10  # faster de-registration in dev
+
+logging:
+  level:
+    root: INFO
+    com.ecommerce: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE  # logs actual SQL bind params
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"                           # expose all actuator endpoints in dev
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  jwt:
+    secret: 3cfa76ef14937c1c0ea519f8fc057a80fcd04a7e4d29e9f3bbe8f93e7f5e3d2
+    expiration: 86400000                       # 24h — same as prod for dev simplicity
+
+# Resilience4j — faster timeouts in dev so you see failures quickly
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        sliding-window-size: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s        # reopen faster in dev
+        permitted-number-of-calls-in-half-open-state: 2
+  timelimiter:
+    instances:
+      user-service:
+        timeout-duration: 5s
+  retry:
+    instances:
+      user-service:
+        max-attempts: 2                        # fewer retries in dev
+        wait-duration: 200ms
