@@ -26,5 +26,10 @@ resilience4j:
         waitDurationInOpenState: 10s
         permittedNumberOfCallsInHalfOpenState: 2
         automaticTransitionFromOpenToHalfOpenEnabled: true    
+  bulkhead:
+    instances:
+      productService:
+        maxConcurrentCalls: 3
+        maxWaitDuration: 0       
 
     
